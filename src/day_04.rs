@@ -17,6 +17,16 @@ enum Cell {
     PaperRoll,
 }
 
+// implement to u8
+impl From<Cell> for u8 {
+    fn from(cell: Cell) -> Self {
+        match cell {
+            Cell::Empty => 0,
+            Cell::PaperRoll => 1,
+        }
+    }
+}
+
 fn parse_cell(input: &str) -> IResult<&str, Cell> {
     alt((
         value(Cell::Empty, tag(".")),
@@ -60,7 +70,6 @@ pub fn day_04_part_1(data: &str) -> i64 {
     let padded = pad(&data, 1, Cell::Empty);
 
     padded
-        .view()
         .windows((3, 3))
         .into_iter()
         .filter(|window| {
@@ -68,19 +77,44 @@ pub fn day_04_part_1(data: &str) -> i64 {
             if center != Cell::PaperRoll {
                 return false;
             }
-            let sum: usize = window.iter().fold(0, |acc, cell| {
-                acc + match cell {
-                    Cell::PaperRoll => 1,
-                    Cell::Empty => 0,
-                }
-            });
+            let sum = window.iter().fold(0, |acc, cell| acc + u8::from(*cell));
             sum < 5
         })
         .count() as i64
 }
 
 pub fn day_04_part_2(data: &str) -> i64 {
-    42
+    let (_, data) = parse_input_data(data).expect("Failed to parse input data");
+    let padded = pad(&data, 1, Cell::Empty);
+
+    let mut iterate = true;
+    let mut grid = padded;
+    let mut count = 0_i64;
+
+    while iterate {
+        iterate = false;
+        for row in 1..(grid.nrows() - 1) {
+            for col in 1..(grid.ncols() - 1) {
+                if grid[(row, col)] != Cell::PaperRoll {
+                    continue;
+                }
+                let sum: u8 = u8::from(grid[(row - 1, col - 1)])
+                    + u8::from(grid[(row - 1, col)])
+                    + u8::from(grid[(row - 1, col + 1)])
+                    + u8::from(grid[(row, col - 1)])
+                    + u8::from(grid[(row, col + 1)])
+                    + u8::from(grid[(row + 1, col - 1)])
+                    + u8::from(grid[(row + 1, col)])
+                    + u8::from(grid[(row + 1, col + 1)]);
+                if sum < 4 {
+                    grid[(row, col)] = Cell::Empty;
+                    iterate = true;
+                    count += 1;
+                }
+            }
+        }
+    }
+    count
 }
 
 #[cfg(test)]
@@ -105,6 +139,6 @@ mod tests {
 
     #[test]
     fn test_day_04_part_2() {
-        assert_eq!(day_04_part_2(EXAMPLE), 42);
+        assert_eq!(day_04_part_2(EXAMPLE), 43);
     }
 }
