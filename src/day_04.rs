@@ -87,33 +87,62 @@ pub fn day_04_part_2(data: &str) -> i64 {
     let (_, data) = parse_input_data(data).expect("Failed to parse input data");
     let padded = pad(&data, 1, Cell::Empty);
 
-    let mut iterate = true;
     let mut grid = padded;
     let mut count = 0_i64;
 
-    while iterate {
-        iterate = false;
-        for row in 1..(grid.nrows() - 1) {
-            for col in 1..(grid.ncols() - 1) {
-                if grid[(row, col)] != Cell::PaperRoll {
-                    continue;
-                }
-                let sum: u8 = u8::from(grid[(row - 1, col - 1)])
-                    + u8::from(grid[(row - 1, col)])
-                    + u8::from(grid[(row - 1, col + 1)])
-                    + u8::from(grid[(row, col - 1)])
-                    + u8::from(grid[(row, col + 1)])
-                    + u8::from(grid[(row + 1, col - 1)])
-                    + u8::from(grid[(row + 1, col)])
-                    + u8::from(grid[(row + 1, col + 1)]);
-                if sum < 4 {
-                    grid[(row, col)] = Cell::Empty;
-                    iterate = true;
-                    count += 1;
-                }
+    let mut queue: Vec<(usize, usize)> = Vec::with_capacity(grid.len());
+    // Check everywhere at least once
+    for row in 1..(grid.nrows() - 1) {
+        for col in 1..(grid.ncols() - 1) {
+            if grid[(row, col)] == Cell::PaperRoll {
+                queue.push((row, col));
             }
         }
     }
+
+    while let Some((row, col)) = queue.pop() {
+        if grid[(row, col)] != Cell::PaperRoll {
+            continue;
+        }
+        let sum: u8 = u8::from(grid[(row - 1, col - 1)])
+            + u8::from(grid[(row - 1, col)])
+            + u8::from(grid[(row - 1, col + 1)])
+            + u8::from(grid[(row, col - 1)])
+            + u8::from(grid[(row, col + 1)])
+            + u8::from(grid[(row + 1, col - 1)])
+            + u8::from(grid[(row + 1, col)])
+            + u8::from(grid[(row + 1, col + 1)]);
+        if sum < 4 {
+            grid[(row, col)] = Cell::Empty;
+            count += 1;
+            // add neighbors to the queue
+            if grid[(row - 1, col - 1)] == Cell::PaperRoll {
+                queue.push((row - 1, col - 1));
+            }
+            if grid[(row - 1, col)] == Cell::PaperRoll {
+                queue.push((row - 1, col));
+            }
+            if grid[(row - 1, col + 1)] == Cell::PaperRoll {
+                queue.push((row - 1, col + 1));
+            }
+            if grid[(row, col - 1)] == Cell::PaperRoll {
+                queue.push((row, col - 1));
+            }
+            if grid[(row, col + 1)] == Cell::PaperRoll {
+                queue.push((row, col + 1));
+            }
+            if grid[(row + 1, col - 1)] == Cell::PaperRoll {
+                queue.push((row + 1, col - 1));
+            }
+            if grid[(row + 1, col)] == Cell::PaperRoll {
+                queue.push((row + 1, col));
+            }
+            if grid[(row + 1, col + 1)] == Cell::PaperRoll {
+                queue.push((row + 1, col + 1));
+            }
+        }
+    }
+
     count
 }
 
