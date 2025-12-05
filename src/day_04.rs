@@ -1,5 +1,8 @@
 /*
     Part 1: mostly playing with rust and ndarray
+    Part 2: relatively easy, wasted time trying to use mutable windows with
+    ndarray, without success. did it the old-fashioned way.
+    got reminded by reddit to use a queue for flood-fill algorithms.
 */
 use ndarray::{Array2, s};
 use nom::{
