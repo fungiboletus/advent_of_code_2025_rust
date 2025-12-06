@@ -117,17 +117,16 @@ pub fn day_06_part_2(data: &str) -> i64 {
     //println!("Rotated char grid:\n{:?}", rotated);
 
     // convert the grid char to a string
-    let string =
-        rotated
-            .rows()
-            .into_iter()
-            .fold(String::with_capacity(grid_chars.len()), |mut acc, row| {
-                for c in row.iter() {
-                    acc.push(*c);
-                }
-                acc.push('\n');
-                acc
-            });
+    let string = rotated.rows().into_iter().fold(
+        String::with_capacity(grid_chars.len() + grid_chars.nrows()),
+        |mut acc, row| {
+            for c in row.iter() {
+                acc.push(*c);
+            }
+            acc.push('\n');
+            acc
+        },
+    );
     //println!("Rotated string:\n{}", string);
 
     let (_, rotated_number_grid) =
