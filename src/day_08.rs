@@ -21,7 +21,7 @@
     by reusing code from the part 1 and hard-coding some shortcut threshold
     with a failover to the full O(n²) solution if needed.
 
-    DSU seem like a nice data structure.
+    disjoin set unions seem like a nice fit.
 
     I think this could be further optimised, but this sounds good enough for now.
 */
