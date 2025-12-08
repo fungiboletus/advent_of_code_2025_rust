@@ -16,6 +16,14 @@
 
     So I decided to not ignore the spoiler, and go with a DSU crate. disjoint looked
     promising.
+
+    Part 2 was a bit more challenging to do fast. I did use a shortcut
+    by reusing code from the part 1 and hard-coding some shortcut threshold
+    with a failover to the full O(n²) solution if needed.
+
+    DSU seem like a nice data structure.
+
+    I think this could be further optimised, but this sounds good enough for now.
 */
 
 use std::{
@@ -209,18 +217,31 @@ fn compute_all_connection_pairs(junction_boxes: &[JunctionBox]) -> Vec<Connectin
 
 pub fn day_08_part_2(data: &str) -> i64 {
     let (_, junction_boxes) = parse_input_data(data).expect("Failed to parse input data");
+    let nb_junction_boxes = junction_boxes.len();
+
+    let mut disjoint_set = DisjointSet::with_len(nb_junction_boxes);
+    let mut current_count_of_sets = nb_junction_boxes;
 
     // try with low values and then the max (yes it's cheating a bit)
-    for nb_connections in [5000, 10000, usize::MAX] {
-        let mut disjoint_set = DisjointSet::with_len(junction_boxes.len());
-        let mut current_count_of_sets = junction_boxes.len();
+    for nb_connections in [
+        0,
+        //nb_junction_boxes * 2,
+        nb_junction_boxes * 5,
+        nb_junction_boxes * 10,
+        nb_junction_boxes * 15,
+        usize::MAX,
+    ]
+    .windows(2)
+    {
+        let previous_nb_connections = nb_connections[0];
+        let nb_connections = nb_connections[1];
         let shortest_connections = if nb_connections < usize::MAX {
             find_closest_junction_boxes(&junction_boxes, nb_connections).into_sorted_vec()
         } else {
             compute_all_connection_pairs(&junction_boxes)
         };
 
-        for connection in shortest_connections.iter() {
+        for connection in shortest_connections.iter().skip(previous_nb_connections) {
             if disjoint_set.join(connection.index_a, connection.index_b) {
                 current_count_of_sets -= 1;
             }
