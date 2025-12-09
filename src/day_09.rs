@@ -18,6 +18,21 @@
     This is exactly what I needed to speed up the flood-fill check.
 
     Now, this is fast enough. About 6ms on my M1 macbook pro.
+
+    --- Browsing the reddit, I found test cases that fail.
+    I added them, but they are currently ignored and I don't plan to
+    fix the algorithm to support them.
+
+    The main issue is the flood fill approach, as I didn't implement a system
+    to detect holes/lakes inside the shape. Too bad.
+
+    The other issue is the coordinates compression not handling well rectangles
+    touching each other on their sides. A better coordinate compression algorithm
+    would be a lot more complex.
+
+    Overall, I think the coordinates compression + flood fill is perhaps not the
+    right solution for a generic algorithm, as it misses some cases. However,
+    it works for the input data and it's pretty fast, so it will stay as is for now.
 */
 
 use std::collections::{HashMap, hash_map::Entry};
@@ -220,7 +235,7 @@ pub fn day_09_part_2(data: &str) -> i64 {
         }
     }
     //println!("Mipmap grid created.");
-    //display_grid(&mipmap_grid);
+    display_grid(&mipmap_grid);
 
     let mut sorted_points = points
         .iter()
@@ -354,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn test_day_09_part_2_harder() {
+    fn test_day_09_part_2_harder1() {
         let harder_example = "1,0
 3,0
 3,6
@@ -369,4 +384,66 @@ mod tests {
 1,9";
         assert_eq!(day_09_part_2(harder_example), 30);
     }
+
+    /*
+    #[test]
+    fn test_day_09_part_2_harder2() {
+        let harder_example = "1,1
+8,1
+8,3
+3,3
+3,4
+8,4
+8,9
+18,9
+18,11
+5,11
+5,9
+4,9
+4,11
+1,11
+1,7
+6,7
+6,6
+1,6";
+        assert_eq!(day_09_part_2(harder_example), 88);
+    }
+
+    #[test]
+    fn test_day_09_part_2_harder3() {
+        let harder_example = "1,5
+3,5
+3,8
+7,8
+7,5
+9,5
+9,10
+11,10
+11,3
+6,3
+6,7
+4,7
+4,1
+13,1
+13,12
+1,12";
+        assert_eq!(day_09_part_2(harder_example), 72);
+    }
+
+    #[test]
+    fn test_day_09_part_2_harder4() {
+        let harder_example = "0,0
+0,1
+1,1
+1,2
+0,2
+0,3
+3,3
+3,2
+2,2
+2,1
+3,1
+3,0";
+        assert_eq!(day_09_part_2(harder_example), 16);
+    }*/
 }
