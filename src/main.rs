@@ -9,7 +9,7 @@ mod day_05;
 mod day_06;
 mod day_07;
 mod day_08;
-//mod day_09;
+mod day_09;
 //mod day_10;
 //mod day_11;
 //mod day_12;
@@ -54,5 +54,5 @@ macro_rules! execute_days {
 
 fn main() {
     execute_days!("01", "02", "03", "04", "05", "06", "07");
-    execute_days!("08"); //"09", "10", "11", "12");
+    execute_days!("08", "09"); //"10", "11", "12");
 }
