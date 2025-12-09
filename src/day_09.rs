@@ -352,4 +352,21 @@ mod tests {
     fn test_day_09_part_2() {
         assert_eq!(day_09_part_2(EXAMPLE), 24);
     }
+
+    #[test]
+    fn test_day_09_part_2_harder() {
+        let harder_example = "1,0
+3,0
+3,6
+16,6
+16,0
+18,0
+18,9
+13,9
+13,7
+6,7
+6,9
+1,9";
+        assert_eq!(day_09_part_2(harder_example), 30);
+    }
 }
