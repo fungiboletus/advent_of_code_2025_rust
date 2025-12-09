@@ -13,6 +13,11 @@
 
     It's pretty slow. It works, but it's pretty slow. About 100ms on my M1 macbook pro.
     I added rayon to parallelise the area computations, which helps a bit, but it's still not great.
+
+    -- After solving the problem myself, I found the mipmap tip on the subreddit.
+    This is exactly what I needed to speed up the flood-fill check.
+
+    Now, this is fast enough. About 6ms on my M1 macbook pro.
 */
 
 use std::collections::{HashMap, hash_map::Entry};
@@ -49,29 +54,20 @@ pub fn day_09_part_1(data: &str) -> i64 {
     // Sort on one axis to speed up slightly the computations
     sorted_points.sort_unstable_by_key(|(row, _col)| *row);
 
-    //let mut max_area = 0_i64;
-    //for (index_a, (row_a, col_a)) in sorted_points.iter().enumerate() {
-    sorted_points
-        .iter()
-        .enumerate()
-        .par_bridge()
-        .map(|(index_a, (row_a, col_a))| {
-            let mut max_area = 0_i64;
-            for (row_b, col_b) in sorted_points.iter().skip(index_a + 1) {
-                let area = (row_b - row_a + 1).abs() * (col_b - col_a + 1).abs();
-                //if area > max_area {
-                if area > max_area {
-                    /*println!(
-                        "New max area {} with points ({},{}) and ({},{})",
-                        area, row_a, col_a, row_b, col_b
-                    );*/
-                    max_area = area;
-                }
+    let mut max_area = 0_i64;
+    for (index_a, (row_a, col_a)) in sorted_points.iter().enumerate() {
+        for (row_b, col_b) in sorted_points.iter().skip(index_a + 1) {
+            let area = (row_b - row_a + 1).abs() * (col_b - col_a + 1).abs();
+            if area > max_area {
+                /*println!(
+                    "New max area {} with points ({},{}) and ({},{})",
+                    area, row_a, col_a, row_b, col_b
+                );*/
+                max_area = area;
             }
-            max_area
-        })
-        .max()
-        .expect("At least one area")
+        }
+    }
+    max_area
 }
 
 #[allow(dead_code)]
@@ -136,8 +132,8 @@ pub fn day_09_part_2(data: &str) -> i64 {
     }
     let max_col_index = index - 2;
 
-    let nb_rows = max_row_index + 2;
-    let nb_cols = max_col_index + 2;
+    let nb_rows = (max_row_index + 2).next_power_of_two();
+    let nb_cols = (max_col_index + 2).next_power_of_two();
 
     let mut grid = Array2::<bool>::default((nb_rows, nb_cols));
 
@@ -193,6 +189,39 @@ pub fn day_09_part_2(data: &str) -> i64 {
         }
     }
     //display_grid(&filled_grid);
+    // power of 2 nb_rows and nb_cols
+    //let nb_rows_pow2 = nb_rows.next_power_of_two();
+    //let nb_cols_pow2 = nb_cols.next_power_of_two();
+
+    // println!("size of filled grid: {:?}", filled_grid.dim());
+    // println!(
+    //     "size of filled grid (pow2): {}x{}",
+    //     nb_rows_pow2, nb_cols_pow2
+    // );
+
+    // build a mipmap of blocks representing block_size*block_size areas that are fully filled
+    let block_size = 8;
+    let nb_block_rows = nb_rows.div_ceil(block_size);
+    let nb_block_cols = nb_cols.div_ceil(block_size);
+    let mut mipmap_grid = Array2::<bool>::from_elem((nb_block_rows, nb_block_cols), false);
+    for row in 0..nb_block_rows {
+        for col in 0..nb_block_cols {
+            let row_start = row * block_size;
+            let col_start = col * block_size;
+            //if row_start >= nb_rows || col_start >= nb_cols {
+            //    continue;
+            //}
+            let row_end = (row_start + block_size).min(nb_rows);
+            let col_end = (col_start + block_size).min(nb_cols);
+            let view = filled_grid.slice(s![row_start..row_end, col_start..col_end]);
+            if view.iter().all(|cell| *cell) {
+                mipmap_grid[(row, col)] = true;
+            }
+        }
+    }
+    //println!("Mipmap grid created.");
+    //display_grid(&mipmap_grid);
+
     let mut sorted_points = points
         .iter()
         .map(|(row, col)| (*row as i64, *col as i64))
@@ -208,7 +237,7 @@ pub fn day_09_part_2(data: &str) -> i64 {
         .par_bridge()
         .map(|(index_a, (row_a, col_a))| {
             let mut max_area = 0_i64;
-            for (row_b, col_b) in sorted_points.iter().skip(index_a + 1) {
+            'outer: for (row_b, col_b) in sorted_points.iter().skip(index_a + 1) {
                 //for (row_b, col_b) in sorted_points.iter() {
                 let height = (row_b - row_a).abs() + 1;
                 let width = (col_b - col_a).abs() + 1;
@@ -224,34 +253,74 @@ pub fn day_09_part_2(data: &str) -> i64 {
                     let col_a_index = *cols_index_map.get(&(*col_a as u64)).unwrap();
                     let row_b_index = *rows_index_map.get(&(*row_b as u64)).unwrap();
                     let col_b_index = *cols_index_map.get(&(*col_b as u64)).unwrap();
-                    let view = filled_grid.slice(s![
-                        row_a_index.min(row_b_index)..=row_a_index.max(row_b_index),
-                        col_a_index.min(col_b_index)..=col_a_index.max(col_b_index)
-                    ]);
-                    // print view
-                    if view.iter().all(|cell| *cell) {
-                        /*println!("view for area {}, (dim: {:?})", area, view.dim());
-                        for r in view.rows() {
-                            for cell in r {
-                                if *cell {
-                                    print!("#");
-                                } else {
-                                    print!(".");
+
+                    let row_start = row_a_index.min(row_b_index);
+                    let row_end = row_a_index.max(row_b_index);
+                    let col_start = col_a_index.min(col_b_index);
+                    let col_end = col_a_index.max(col_b_index);
+
+                    //let view = filled_grid.slice(s![row_start..=row_end, col_start..=col_end]);
+                    //if view.iter().all(|cell| *cell) {
+
+                    // check the mipmap first and then the filled_grid if needed
+                    let mipmap_row_start = row_start / block_size;
+                    let mipmap_row_end = row_end / block_size;
+                    let mipmap_col_start = col_start / block_size;
+                    let mipmap_col_end = col_end / block_size;
+
+                    for mipmap_row in mipmap_row_start..=mipmap_row_end {
+                        for mipmap_col in mipmap_col_start..=mipmap_col_end {
+                            if !mipmap_grid[(mipmap_row, mipmap_col)] {
+                                // not fully filled block
+                                // let's check the filled grid for the right area (not the whole block)
+                                let actual_row_start = row_start.max(mipmap_row * block_size);
+                                let actual_row_end = ((mipmap_row + 1) * block_size - 1)
+                                    .min(row_end)
+                                    .min(nb_rows - 1);
+                                let actual_col_start = col_start.max(mipmap_col * block_size);
+                                let actual_col_end = ((mipmap_col + 1) * block_size - 1)
+                                    .min(col_end)
+                                    .min(nb_cols - 1);
+                                // sometimes we go out of bounds
+                                /*if actual_row_start >= nb_rows || actual_col_start >= nb_cols {
+                                    continue;
+                                }*/
+
+                                let view = filled_grid.slice(s![
+                                    actual_row_start..=actual_row_end,
+                                    actual_col_start..=actual_col_end
+                                ]);
+                                if !view.iter().all(|cell| *cell) {
+                                    //println!("  Rejected area {} due to grid coords ({},{}) and ({},{})", area, row_a_index, col_a_index, row_b_index, col_b_index);
+                                    continue 'outer;
                                 }
                             }
-                            println!();
                         }
-                        println!(
-                            "  Confirmed area {} with grid coords ({},{}) and ({},{})",
-                            area, row_a_index, col_a_index, row_b_index, col_b_index
-                        );
-                        println!(
-                            "total coords: rows {}-{}, cols {}-{}",
-                            row_a, row_b, col_a, col_b
-                        );*/
-                        //max_area = area;
-                        max_area = area;
                     }
+
+                    //if true {
+                    /*println!("view for area {}, (dim: {:?})", area, view.dim());
+                    for r in view.rows() {
+                        for cell in r {
+                            if *cell {
+                                print!("#");
+                            } else {
+                                print!(".");
+                            }
+                        }
+                        println!();
+                    }
+                    println!(
+                        "  Confirmed area {} with grid coords ({},{}) and ({},{})",
+                        area, row_a_index, col_a_index, row_b_index, col_b_index
+                    );
+                    println!(
+                        "total coords: rows {}-{}, cols {}-{}",
+                        row_a, row_b, col_a, col_b
+                    );*/
+                    //max_area = area;
+                    max_area = area;
+                    //}
                 }
             }
             max_area
