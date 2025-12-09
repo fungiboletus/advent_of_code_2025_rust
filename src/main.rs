@@ -22,9 +22,13 @@ where
     D2: Display,
 {
     let now = std::time::Instant::now();
-    println!("Day {}, part 1: {}", day, part_1(data));
-    println!("Day {}, part 2: {}", day, part_2(data));
-    println!("Time day {}: {:?}", day, now.elapsed());
+    let result_part_1 = part_1(data);
+    let elapsed = now.elapsed();
+    println!("Day {}, part 1 ({:?}):\t{}", day, elapsed, result_part_1);
+    let now = std::time::Instant::now();
+    let result_part_2 = part_2(data);
+    let elapsed = now.elapsed();
+    println!("Day {}, part 2 ({:?}):\t{}", day, elapsed, result_part_2);
 }
 
 macro_rules! execute_day {
