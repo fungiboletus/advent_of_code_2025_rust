@@ -11,10 +11,23 @@
     It runs a bit below 1ms on my machine.
 
     I implemented the XOR operation after getting the hint from the subreddit.
+    Then it can run in about 0.75ms.
     ---
     As expected, part 2 is harder and I think I have to implement a proper solution
     this time. I'm guessing on graphs, and I will check the solution instead of
     trying to guess it.
+
+    So, it turns out that part 2 is really hard today. It's either
+    bruteforcing for hours, or using an MILP solver such as Z3 or similar.
+    Potentials:
+    - https://docs.rs/z3/latest/z3/
+    - https://github.com/specy/microlp
+
+    The use of microlp was pretty neat. It runs between 5 and 6ms
+    on my machine. I had to round the results though, as it had
+    small floating point errors like 42.999998 instead of 43, that
+    was then converted to 42 when casting to i64.
+    Also had to use integer variables because you can't half-press a button.
 
 */
 
@@ -144,7 +157,9 @@ fn part_1_machine_computation(machine: &Machine) -> usize {
         }*/
         for wiring_u16 in &wirings_as_u16 {
             let new_state = state ^ wiring_u16;
-            binary_heap.push(Reverse((steps + 1, new_state)));
+            if !visited[new_state as usize] {
+                binary_heap.push(Reverse((steps + 1, new_state)));
+            }
         }
     }
 
@@ -161,7 +176,91 @@ pub fn day_10_part_1(data: &str) -> i64 {
 }
 
 pub fn day_10_part_2(data: &str) -> i64 {
-    42
+    /* use microlp::{Problem, OptimizationDirection, ComparisonOp};
+
+    // Maximize an objective function x + 2 * y of two continuous variables x >= 0 and 0 <= y <= 3
+    let mut problem = Problem::new(OptimizationDirection::Maximize);
+    let x = problem.add_var(1.0, (0.0, f64::INFINITY));
+    let y = problem.add_var(2.0, (0.0, 3.0));
+
+    // subject to constraints: x + y <= 4 and 2 * x + y >= 2.
+    problem.add_constraint(&[(x, 1.0), (y, 1.0)], ComparisonOp::Le, 4.0);
+    problem.add_constraint(&[(x, 2.0), (y, 1.0)], ComparisonOp::Ge, 2.0);
+
+    // Optimal value is 7, achieved at x = 1 and y = 3.
+    let solution = problem.solve().unwrap();
+    assert_eq!(solution.objective(), 7.0);
+    assert_eq!(solution[x], 1.0);
+    assert_eq!(solution[y], 3.0); */
+
+    //v0 = 3 = b4 + b5
+    //v1 = 5 = b1 + b5
+    //v2 = 4 = b2 + b3 + b4
+    //v3 = 7 = b0 + b1 + b3
+    //min(b0 + b1 + b2 + b3 + b4 + b5)
+
+    /*use microlp::{ComparisonOp, OptimizationDirection, Problem};
+    let mut problem = Problem::new(OptimizationDirection::Minimize);
+    let b0 = problem.add_var(1.0, (0.0, f64::INFINITY));
+    let b1 = problem.add_var(1.0, (0.0, f64::INFINITY));
+    let b2 = problem.add_var(1.0, (0.0, f64::INFINITY));
+    let b3 = problem.add_var(1.0, (0.0, f64::INFINITY));
+    let b4 = problem.add_var(1.0, (0.0, f64::INFINITY));
+    let b5 = problem.add_var(1.0, (0.0, f64::INFINITY));
+
+    problem.add_constraint(&[(b4, 1.0), (b5, 1.0)], ComparisonOp::Eq, 3.0);
+    problem.add_constraint(&[(b1, 1.0), (b5, 1.0)], ComparisonOp::Eq, 5.0);
+    problem.add_constraint(&[(b2, 1.0), (b3, 1.0), (b4, 1.0)], ComparisonOp::Eq, 4.0);
+    problem.add_constraint(&[(b0, 1.0), (b1, 1.0), (b3, 1.0)], ComparisonOp::Eq, 7.0);
+
+    let solution = problem.solve().expect("Should be solvable");
+    let result = solution.objective() as i64;
+    result*/
+
+    let (_, machines) = parse_input_data(data).expect("Failed to parse input data");
+    machines
+        .par_iter()
+        .map(part_2_lp_solution)
+        .collect::<Result<Vec<i64>, microlp::Error>>()
+        .expect("Failed to solve MILP")
+        .iter()
+        .sum::<i64>()
+}
+
+fn part_2_lp_solution(machine: &Machine) -> Result<i64, microlp::Error> {
+    use microlp::{ComparisonOp, OptimizationDirection, Problem};
+    let mut problem = Problem::new(OptimizationDirection::Minimize);
+    //println!("machine: {:?}", machine);
+
+    let nb_variables = machine.button_wiring_schematics.len();
+    let variables = (0..nb_variables)
+        //.map(|_| problem.add_var(1.0, (0.0, f64::INFINITY)))
+        .map(|_| problem.add_integer_var(1.0, (0, 1000)))
+        .collect::<Vec<_>>();
+    //println!("Variables: {:?}", variables);
+
+    for (joltage_requirement_index, &joltage_requirement) in
+        machine.joltage_requirements.iter().enumerate()
+    {
+        let mut constraint_terms = Vec::new();
+        for (variable_index, wiring) in machine.button_wiring_schematics.iter().enumerate() {
+            if wiring.contains(&joltage_requirement_index) {
+                /*println!(
+                    "Joltage requirement {} of value {} depends on variable {}",
+                    joltage_requirement_index, joltage_requirement, variable_index
+                );
+                println!("Wiring: {:?}", wiring);*/
+                constraint_terms.push((variables[variable_index], 1.0));
+            }
+        }
+        problem.add_constraint(
+            constraint_terms,
+            ComparisonOp::Eq,
+            joltage_requirement as f64,
+        );
+    }
+    let solution = problem.solve()?;
+    Ok(solution.objective().round() as i64)
 }
 
 #[cfg(test)]
@@ -179,6 +278,6 @@ mod tests {
 
     #[test]
     fn test_day_10_part_2() {
-        assert_eq!(day_10_part_2(EXAMPLE), 42);
+        assert_eq!(day_10_part_2(EXAMPLE), 33);
     }
 }
