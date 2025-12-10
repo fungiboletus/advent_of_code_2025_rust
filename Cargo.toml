@@ -9,3 +9,4 @@ paste = "1.0"
 rayon = "1.11"
 ndarray = { version = "0.17", features = ["rayon"] }
 disjoint = "0.8"
+bitvec = "1.0"

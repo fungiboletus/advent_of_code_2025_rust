@@ -235,7 +235,7 @@ pub fn day_09_part_2(data: &str) -> i64 {
         }
     }
     //println!("Mipmap grid created.");
-    display_grid(&mipmap_grid);
+    //display_grid(&mipmap_grid);
 
     let mut sorted_points = points
         .iter()
