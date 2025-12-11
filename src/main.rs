@@ -11,7 +11,7 @@ mod day_07;
 mod day_08;
 mod day_09;
 mod day_10;
-//mod day_11;
+mod day_11;
 //mod day_12;
 
 fn execute_day<F, G, D1, D2>(day: &str, data: &str, part_1: F, part_2: G)
@@ -58,5 +58,5 @@ macro_rules! execute_days {
 
 fn main() {
     execute_days!("01", "02", "03", "04", "05", "06", "07");
-    execute_days!("08", "09", "10"); //"11", "12");
+    execute_days!("08", "09", "10", "11"); //"12");
 }
